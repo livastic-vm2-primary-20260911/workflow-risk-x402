@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: vm2-workflow-x402
+    runtime: node
+    plan: free
+    repo: https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402
+    branch: main
+    buildCommand: npm ci --ignore-scripts --no-audit --no-fund
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: "0.0.0.0"
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_ORIGIN
+        value: https://vm2-workflow-x402.onrender.com
+      - key: FACILITATOR_URL
+        value: https://facilitator.openx402.ai
+      - key: PAY_TO
+        sync: false

@@ -1,0 +1,26 @@
+{
+  "name": "vm2-workflow-risk-x402",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Paid x402 v2 GitHub Actions YAML static risk preflight API, distinct from VM5 OpenAPI lint",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:unit": "node --test tests/core.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@x402/core": "2.28.0",
+    "@x402/evm": "2.28.0",
+    "@x402/express": "2.28.0",
+    "@x402/extensions": "2.28.0",
+    "express": "5.3.0",
+    "yaml": "2.9.1"
+  },
+  "overrides": {
+    "fast-uri": "3.1.8"
+  }
+}

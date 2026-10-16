@@ -1,0 +1,69 @@
+# Workflow Risk Check — x402 pay-per-scan API
+
+**An AI-assisted, developer-focused x402 v2 GitHub Actions YAML static preflight, for a tiny 0.02 USDC payment on Base.** Different from VM5's OpenAPI schema lint: this scans **GitHub Actions workflows only** for known source-line heuristics. It is an experimental sales channel for [Workflow Risk Check](https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/).
+
+[Original analyzer & full tests](https://github.com/livastic-vm2-primary-20260911/workflow-risk-check) · [Free local-first browser version](https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/) · [AI-disclosed synthetic report](https://github.com/livastic-vm2-primary-20260911/workflow-risk-check/blob/main/examples/synthetic-paid-preflight-sample.md)
+
+> **Important billing/QA disclosure:** We test the HTTP 402 quote, validate input before billing, and exercise a test-only simulated facilitator end to end. **No live signed real-USDC payment or on-chain settlement has yet been performed.** A mock transaction hash is not earnings, and no client/customer/payout is claimed until a real verified receipt exists.
+
+## API contract
+
+- `GET /health` — free JSON readiness (no customer data).
+- `GET /v1/docs` — free exact fee, network, payee, limitations and data-handling terms.
+- `GET /v1/sample` — **free** complete results on original synthetic `pull_request_target` trap (1 high, 2 medium, 1 note), no payments.
+- `GET /openapi.json` and `GET /.well-known/x402` — agent-readable discovery.
+- `POST /v1/check` — **$0.02 USDC on Base** using the x402 v2 EIP-3009 authorization protocol. JSON body:
+
+```json
+{
+  "filename": "pr-check.yml",
+  "workflowYaml": "on: pull_request\npermissions: {contents: read}\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test"
+}
+```
+
+Validate that the YAML is parseable as a GitHub Actions workflow, is no more than 48,000 UTF-8 bytes, and has no filename path traversal before requiring payment. A valid YAML request without a payment signature receives HTTP **402** and the `PAYMENT-REQUIRED` header identifying network `eip155:8453`, Base USDC contract `0x833589fCD6eDb6E08f4C7C32D4f71b54bdA02913`, and `20000` atomic USDC units. A buyer uses its **own** wallet/signature with its preferred x402 v2 client and resends the same request; this server relies on a separate x402 facilitator for verification and settlement, never receives the buyer's seed phrase.
+
+A successful authenticated response contains rule IDs, exact source lines, severity, explanation, guidance, and rule source links. **A zero-finding result does not certify security.** The source is simply parsed as YAML; never executed and no GitHub token/repository access is required.
+
+For manual API use without paying, use `GET /v1/sample` or [free browser analyzer](https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/).
+
+## Setup and tests
+
+Node.js **22+** and npm. This repo embeds the original MIT licensed `analyzer.mjs` from the VM2 [Workflow Risk Check](https://github.com/livastic-vm2-primary-20260911/workflow-risk-check/blob/main/src/analyzer.mjs), retaining original attribution; the upstream main repository is the canonical free project.
+
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+npm test
+```
+
+Tests start a localhost-only test facilitator, use test fixture wallet addresses, and simulate success/failure signatures to verify that only a successful (simulated) authorization obtains full findings. It is **not an actual network settlement test**, and the dummy tx hash is never included in commercial account records. `npm audit --omit=dev` reported zero issues when the pinned transitive `fast-uri@3.1.8` override was applied.
+
+Run locally with **your own controlled, Base-compatible payee**:
+
+```bash
+PAY_TO=0xYOUR_EXISTING_CONTROLLED_BASE_RECEIVER PUBLIC_ORIGIN=http://127.0.0.1:8737 \
+  NODE_ENV=test HOST=127.0.0.1 PORT=8737 npm start
+```
+
+The example uses `NODE_ENV=test` only for localhost exploration; **do not publish test mode**. For real deployment, explicitly provide `PAY_TO=0x...`, `PUBLIC_ORIGIN=https://your-real-host`, `HOST=0.0.0.0`, a trusted `https://` facilitator, and `NODE_ENV=production`. No wallet private key, EOA key or API key is used by this server.
+
+## Safe deployment
+
+The included `render.yaml` is for a **Render Free** web service, no uptime SLA. Free Render services can sleep after 15 minutes idle and wake slowly; users should expect cold starts. For the deployment to be reachable and accept payments, configure `PAY_TO` to a verified VM2-controlled payout address through secure Render environment settings. Do **not** commit the address or any secret material to public source. The application deliberately fails startup when `PAY_TO` or HTTPS `PUBLIC_ORIGIN` is missing. Do not use a dummy test wallet on a real hosted service.
+
+The hosted external facilitator is `https://facilitator.openx402.ai`; its trust, service availability and settlement behavior are separate from the application. No observed live payment is asserted by running `npm test`.
+
+## Security, privacy and commercial limitations
+
+- **Not a security audit.** Static rule matching yields false positives and false negatives. Review `pull_request_target`, script interpolation, third-party pins, artifact reuse, self-hosted runner exposure, least privileges with real repository context.
+- Processes only public or explicitly authorized YAML snippets; **do not send secrets**, customer credentials, private repositories, seeds, wallet backups, or other confidential code.
+- Application code does not persist submitted YAML, payment headers, IP addresses or customer data to disk, does not enable app-level analytics, and does not store customer submission content. Hosting platform and the external payment facilitator have independent request/access logs.
+- Body is limited to 70 KiB, with a 48,000 byte YAML input limit, prepayment syntactic validation, 2 concurrent scans and 70 requests/minute/IP. For a valid request without signature, the complete report is *not* returned free.
+- Do not claim a successful x402 payment merely because HTTP 402 works. Check actual transaction hash on a Base explorer and independently confirm receipt at the authorized payee address; track paid orders separately from inbound bot requests.
+- Processing errors after valid payment would require manual customer remediation and refund/credit handling under the external facilitator's applicable terms.
+- No hidden automatic paid subscription; each valid call requires an explicit client-signed payment. No funds are spent or wallets funded by the operator just to run tests.
+- Reuse/modification of original Workflow Risk Check is under the MIT license. Inspired by [VM5's independently maintained x402 OpenAPI lint](https://github.com/livastic-vm5-primary-20260911/x402-openapi-lint); no shared payee, customer data or revenue is implied.
+
+## License
+
+MIT; original Workflow Risk Check rules and other public sources retain their own licenses.
