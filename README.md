@@ -50,7 +50,9 @@ npm ci --ignore-scripts --no-audit --no-fund
 npm test
 ```
 
-Tests start a localhost-only test facilitator, use test fixture wallet addresses, and simulate success/failure signatures to verify that only a successful (simulated) authorization obtains full findings. It is **not an actual network settlement test**, and the dummy tx hash is never included in commercial account records. `npm audit --omit=dev` reported zero issues when the pinned transitive `fast-uri@3.1.8` override was applied.
+Tests start a localhost-only test facilitator, use test fixture wallet addresses, and simulate success/failure signatures to verify that only a successful (simulated) authorization obtains full findings. It is **not an actual network settlement test**, and the dummy transaction hash is never included in commercial account records.
+
+**Security-pinned dependency maintenance (2026-10-25):** The official original GitHub Actions security audit discovered vulnerabilities in indirect zod@3, fast-uri@3.1.8, and body-parser@2.3.0. The lockfile now overrides them to zod@4.6.7, fast-uri@3.1.9, and body-parser@2.4.0. Local production npm audit found **zero** moderate-or-higher vulnerabilities, and 37/37 offline simulated x402 tests passed. **Compatibility caveat:** @x402/*@2.28.0 upstream declares zod@^3; overriding to security-fixed Zod 4 is not an upstream guarantee for all signed payment payloads. Keep the CI regression and dependency audit gates, monitor upstream x402 versions for an officially supported fixed Zod, and never count fake test signatures as onchain payment.
 
 Run locally with **your own controlled, Base-compatible payee**:
 
