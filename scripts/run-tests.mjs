@@ -1,6 +1,7 @@
 // Test-only local facilitator: verifies fake byte marker, never signs or settles Base USDC.
 import http from "node:http";
 import net from "node:net";
+import fs from "node:fs";
 import {spawn} from "node:child_process";
 import {once} from "node:events";
 const TEST_PAYTO="0x"+"44".repeat(20);
@@ -35,10 +36,23 @@ const facilitator=http.createServer((req,res)=>{
  res.statusCode=503;res.end(JSON.stringify({error:"mock only supports supported, verify, settle"}));
 });
 facilitator.listen(0,"127.0.0.1");await once(facilitator,"listening");
+const examplePublicWorkflow=fs.readFileSync(new URL("../examples/pr-check.yml",import.meta.url),"utf8");
+const githubFixture=http.createServer((req,res)=>{
+ res.setHeader("Content-Type","application/json");
+ const validPath="/repos/livastic-vm2-primary-20260911/workflow-risk-x402/contents/.github/workflows/verify.yml?ref=main";
+ if(req.method!=="GET" || req.url!==validPath){
+  res.statusCode=404;res.end(JSON.stringify({message:"Not Found"}));return;
+ }
+ res.end(JSON.stringify({type:"file",encoding:"base64",name:"verify.yml",
+   sha:"0".repeat(40),size:Buffer.byteLength(examplePublicWorkflow),
+   content:Buffer.from(examplePublicWorkflow,"utf8").toString("base64")}));
+});
+githubFixture.listen(0,"127.0.0.1");await once(githubFixture,"listening");
 const port=await getPort();
 const env={...process.env,PORT:String(port),HOST:"127.0.0.1",NODE_ENV:"test",
  PAY_TO:TEST_PAYTO,TEST_PAYTO,TEST_URL:"http://127.0.0.1:"+port,
- FACILITATOR_URL:"http://127.0.0.1:"+facilitator.address().port};
+ FACILITATOR_URL:"http://127.0.0.1:"+facilitator.address().port,
+ GITHUB_FIXTURE_BASE:"http://127.0.0.1:"+githubFixture.address().port};
 const service=spawn(process.execPath,["server.mjs"],{cwd:new URL("../",import.meta.url),
  env,stdio:["ignore","pipe","pipe"]});
 let log="";
@@ -56,10 +70,10 @@ async function ready(){
 let result=1;
 try{
  await ready();
- const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs"],
+ const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs","tests/public-get.test.mjs"],
   {cwd:new URL("../",import.meta.url),env,stdio:"inherit"});
  const [code]=await once(tests,"close");
  result=code??1;
 }catch(e){console.error("TEST_HARNESS_ERROR",e.stack||e);}
-finally{service.kill("SIGTERM");facilitator.close();}
+finally{service.kill("SIGTERM");facilitator.close();githubFixture.close();}
 process.exitCode=result;

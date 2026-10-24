@@ -11,7 +11,8 @@
 - `GET /health` — free JSON readiness (no customer data).
 - `GET /v1/docs` — free exact fee, network, payee, limitations and data-handling terms.
 - `GET /v1/sample` — **free** complete results on original synthetic `pull_request_target` trap (1 high, 2 medium, 1 note), no payments.
-- `GET /openapi.json` and `GET /.well-known/x402` — agent-readable discovery.
+- `GET /openapi.json` and `GET /.well-known/x402` — agent-readable discovery for both paid operations.
+- `GET /v1/public-workflow` — **$0.02 native Circle Base USDC**, inspect one anonymously accessible public GitHub Actions YAML via fixed GitHub Contents API. Defaults to the original owned public `workflow-risk-x402/.github/workflows/verify.yml`. Optional strictly validated query parameters are `owner`, `repo`, `ref` (`main`, `master`, or a pinned 40-hex commit), and `file` (one `.yml` or `.yaml` basename). This endpoint returns HTTP **402 to any client before payment**, without uploading YAML or needing a GitHub token.
 - `POST /v1/check` — **$0.02 USDC on Base** using the x402 v2 EIP-3009 authorization protocol. JSON body:
 
 ```json
@@ -26,6 +27,19 @@ Validate that the YAML is parseable as a GitHub Actions workflow, is no more tha
 A successful authenticated response contains rule IDs, exact source lines, severity, explanation, guidance, and rule source links. **A zero-finding result does not certify security.** The source is simply parsed as YAML; never executed and no GitHub token/repository access is required.
 
 For manual API use without paying, use `GET /v1/sample` or [free browser analyzer](https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/).
+
+## Public-only GET buyer quickstart
+
+Inspect the deployed source, limitations and fee for free, then get a real unsigned payment quote:
+
+```bash
+curl -i https://vm2-workflow-x402.onrender.com/v1/public-workflow
+curl -i "https://vm2-workflow-x402.onrender.com/v1/public-workflow?owner=livastic-vm2-primary-20260911&repo=workflow-risk-x402&ref=main&file=verify.yml"
+```
+
+The free preflight must resolve an anonymously readable `.github/workflows/` YAML from **the official `api.github.com` host only**, with a strict filename/owner/ref, no redirects, no forwarded cookies, no buyer secrets, and an ~48KB maximum. Public YAML is cached in memory for up to eight minutes to limit unnecessary GitHub calls; it is not persisted by this application. If GitHub fails or the YAML is invalid, the endpoint refuses **before x402 payment**. Only a real independently signed buyer authorization can receive a complete paid report containing source-line findings and GitHub's original blob SHA. A public source scan is not comprehensive security certification, and the third-party hosted API/settlement facilitator can independently log traffic. The original VM1 MetaMask public payout address is set in Render `PAY_TO` as a runtime variable, not any private key.
+
+**Commercial honesty:** live health, an unsigned HTTP 402 quote, and locally faked payment successes are not sales or settled on-chain USDC. A real buyer must complete the exact x402 transaction and receive product; receipt and beneficiary transfer must be independently verified before booking income. The same human owner operates the original VM2 service and separate VM5 API services. Do not mislabel a marketplace operator's verification purchase as an unrelated organic customer.
 
 ## Setup and tests
 

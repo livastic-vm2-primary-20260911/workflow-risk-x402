@@ -7,6 +7,7 @@ import {x402ResourceServer,HTTPFacilitatorClient} from "@x402/core/server";
 import {ExactEvmScheme} from "@x402/evm/exact/server";
 import {declareDiscoveryExtension} from "@x402/extensions/bazaar";
 import {normalizeInput,sampleResponse,paidResponse,MAX_YAML_BYTES,RULESET,PRICE_USDC,USDC_BASE,NETWORK} from "./core.mjs";
+import {readPublicWorkflow} from "./public-source.mjs";
 
 const DIR=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||8737);
@@ -56,6 +57,11 @@ const routes={
       method:"POST",bodyType:"json",input:example,
       inputSchema:model,output:{example:{ok:true,ruleset:RULESET,report:{counts:{high:1,medium:2,note:1},findings:[{id:"TARGET_UNTRUSTED_CODE",severity:"high",line:8}]}}}
     })
+  },
+  "GET /v1/public-workflow":{
+    accepts:{scheme:"exact",price:PRICE,network:NETWORK,payTo:PAY_TO},
+    description:"One public GitHub Actions source-file static preflight, read anonymously from GitHub Contents API. No buyer-supplied host, no code execution, no private repository or credentials.",
+    mimeType:"application/json"
   }
 };
 const payment=paymentMiddleware(routes,resourceServer,undefined,undefined,false);
@@ -82,6 +88,23 @@ function makeDiscovery(){
     "/health":{get:{summary:"Free readiness status",responses:{"200":{description:"Service alive"}}}},
     "/v1/docs":{get:{summary:"Free payment and privacy terms",responses:{"200":{description:"Documentation"}}}},
     "/v1/sample":{get:{summary:"Free reproducible synthetic findings",responses:{"200":{description:"Synthetic report"}}}},
+    "/v1/public-workflow":{get:{
+      summary:"Paid 0.02 USDC native Base GitHub Actions public workflow preflight",
+      operationId:"preflightPublicGithubWorkflow",
+      description:"Only anonymous GitHub public Contents API. Optional source owner, repo, ref=main/master/40hex and file=one .yml/.yaml basename. Invalid or unavailable sources fail before payment.",
+      parameters:[
+       {in:"query",name:"owner",required:false,schema:{type:"string"}},
+       {in:"query",name:"repo",required:false,schema:{type:"string"}},
+       {in:"query",name:"ref",required:false,schema:{type:"string"}},
+       {in:"query",name:"file",required:false,schema:{type:"string"}}
+      ],
+      "x-payment-info":{protocols:["x402"],price:{mode:"fixed",currency:"USDC",amount:PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
+      security:[{x402Payment:[]}],
+      responses:{"200":{description:"Payment-verified static public GitHub workflow findings with original source SHA"},
+       "400":{description:"Invalid source, not charged"},"402":{description:"x402 Base USDC payment quote"},
+       "404":{description:"Public workflow unavailable, not charged"},"413":{description:"Source too large, not charged"},
+       "503":{description:"GitHub unavailable, not charged"}}
+    }},
     "/v1/check":{post:{
       summary:"GitHub Actions YAML static scan — x402 $0.02 USDC",
       operationId:"checkGithubActionsWorkflow",
@@ -103,8 +126,8 @@ function makeDiscovery(){
   },
   wellKnown:{
    version:1,
-   resources:[PUBLIC_ORIGIN+"/v1/check"],
-   description:"Fixed-price x402 Base USDC 0.02 for 1 source-line GitHub Actions YAML preflight. POST {workflowYaml:'...'} with x402 v2 authorization. First receive HTTP 402. Free example /v1/sample. Not a security certificate.",
+   resources:[PUBLIC_ORIGIN+"/v1/check",PUBLIC_ORIGIN+"/v1/public-workflow"],
+   description:"Fixed 0.02 USDC native Base x402 API. POST /v1/check analyzes supplied public YAML. GET /v1/public-workflow analyzes one anonymously readable public GitHub Actions workflow with optional safe owner/repo/ref/file query. Both require buyer-signed settlement. Free example /v1/sample. Not a security certification.",
    paymentExperience:"Quote tested, full onchain settlement not yet independently verified."
   }
  };
@@ -144,6 +167,7 @@ app.get("/v1/docs",(_req,res)=>res.json({
  status:"Beta — real on-chain payment settlement not yet exercised",
  payment:payFields,
  paid:{method:"POST",path:"/v1/check",contentType:"application/json",body:model},
+ paidPublicGET:{method:"GET",path:"/v1/public-workflow",defaultPublicSource:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402/blob/main/.github/workflows/verify.yml",query:["owner","repo","ref","file"],sourceValidatedBeforePayment:true},
  free:{"/health":"Service health","/v1/sample":"Original synthetic reproducible sample","/openapi.json":"OpenAPI 3.1 with payment info"},
  limits:{utf8WorkflowBytes:MAX_YAML_BYTES,requestsPerMinute:70,concurrentChecks:2},
  privacy:"Server-side processing of explicitly provided YAML only; no application-level persistence, analytics, IP/address or payment-header logging. Hosting platform and external x402 facilitator have separate logs. Do not submit secrets or private code.",
@@ -153,8 +177,22 @@ app.get("/v1/docs",(_req,res)=>res.json({
 app.get("/v1/sample",(_req,res)=>res.json(SAMPLE_REPORT));
 app.get("/openapi.json",(_req,res)=>res.json(openapi));
 app.get(["/.well-known/x402","/.well-known/x402.json"],(_req,res)=>res.json(wellKnown));
-app.get("/robots.txt",(_req,res)=>res.type("text/plain").send("User-agent: *\nDisallow: /v1/check\nAllow: /v1/docs\nAllow: /v1/sample\n"));
+app.get("/robots.txt",(_req,res)=>res.type("text/plain").send("User-agent: *\nDisallow: /v1/check\nDisallow: /v1/public-workflow\nAllow: /v1/docs\nAllow: /v1/sample\n"));
 app.options("/v1/check",(_req,res)=>res.status(204).end());
+app.get("/v1/public-workflow",async(req,res,next)=>{
+ const source=await readPublicWorkflow(req.query);
+ if(!source.ok)return res.status(source.status).json({ok:false,charged:false,error:source.error});
+ if(inFlight>=2)return res.status(503).json({ok:false,charged:false,error:"Busy; no payment accepted. Retry later."});
+ inFlight++;
+ res.on("finish",()=>{inFlight=Math.max(0,inFlight-1);});
+ res.on("close",()=>{if(!res.writableEnded)inFlight=Math.max(0,inFlight-1);});
+ res.locals.publicWorkflow=source;
+ next();
+},payment,(req,res)=>{
+ const {preflight,source}=res.locals.publicWorkflow;
+ res.status(200).json({...paidResponse(preflight.report,preflight.bytes,preflight.filename),
+  source,disclosure:"Anonymous public GitHub YAML static preflight. Not a security audit, certification or exploit evidence."});
+});
 app.post("/v1/check",express.json({limit:"70kb"}),(req,res,next)=>{
  if(!req.is("application/json"))return res.status(415).json({charged:false,error:"Use application/json."});
  const preflight=normalizeInput(req.body);
