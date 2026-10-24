@@ -7,7 +7,7 @@ import {x402ResourceServer,HTTPFacilitatorClient} from "@x402/core/server";
 import {ExactEvmScheme} from "@x402/evm/exact/server";
 import {declareDiscoveryExtension} from "@x402/extensions/bazaar";
 import {normalizeInput,sampleResponse,paidResponse,MAX_YAML_BYTES,RULESET,PRICE_USDC,USDC_BASE,NETWORK} from "./core.mjs";
-import {readPublicWorkflow} from "./public-source.mjs";
+import {readPublicWorkflow,readBundledPublicWorkflow} from "./public-source.mjs";
 
 const DIR=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||8737);
@@ -27,6 +27,21 @@ if(!PUBLIC_ORIGIN || !/^https:\/\/[a-z0-9.-]+$/.test(PUBLIC_ORIGIN) &&
 
 const SAMPLE_YAML=fs.readFileSync(path.join(DIR,"examples/pr-check.yml"),"utf8");
 const SAMPLE_REPORT=sampleResponse(SAMPLE_YAML);
+const PINNED_PUBLIC_SAMPLE=readBundledPublicWorkflow();
+if(!PINNED_PUBLIC_SAMPLE.ok)throw Error("Pinned public GitHub source invalid; refuse to advertise paid discovery.");
+const PUBLIC_OUTPUT_EXAMPLE={
+ ...paidResponse(PINNED_PUBLIC_SAMPLE.preflight.report,
+                 PINNED_PUBLIC_SAMPLE.preflight.bytes,
+                 PINNED_PUBLIC_SAMPLE.preflight.filename),
+ source:PINNED_PUBLIC_SAMPLE.source,
+ disclosure:"This is an illustrative paid-response shape derived from an original pinned public YAML. It is NOT a paid customer order, an onchain receipt or a certification."
+};
+const PUBLIC_QUERY_SCHEMA={properties:{
+ owner:{type:"string",description:"Optional existing public GitHub username or organization; defaults to our own publisher."},
+ repo:{type:"string",description:"Optional public GitHub repository; defaults to workflow-risk-x402."},
+ ref:{type:"string",description:"Optional main, master or exactly 40 lowercase hex Git commit; defaults to pinned deployed source."},
+ file:{type:"string",description:"Optional simple .yml or .yaml filename under .github/workflows; defaults to verify.yml."}
+},additionalProperties:false};
 const facilitator=new HTTPFacilitatorClient({url:FACILITATOR_URL});
 const resourceServer=new x402ResourceServer(facilitator);
 resourceServer.register("eip155:*",new ExactEvmScheme());
@@ -61,7 +76,14 @@ const routes={
   "GET /v1/public-workflow":{
     accepts:{scheme:"exact",price:PRICE,network:NETWORK,payTo:PAY_TO},
     description:"One public GitHub Actions source-file static preflight, read anonymously from GitHub Contents API. No buyer-supplied host, no code execution, no private repository or credentials.",
-    mimeType:"application/json"
+    mimeType:"application/json",
+    extensions:declareDiscoveryExtension({
+      method:"GET",input:{},inputSchema:PUBLIC_QUERY_SCHEMA,
+      output:{example:PUBLIC_OUTPUT_EXAMPLE,schema:{properties:{
+        ok:{type:"boolean"},ruleset:{type:"string"},input:{type:"object"},
+        report:{type:"object"},source:{type:"object"},paid_x402:{type:"object"}
+      }}}
+    })
   }
 };
 const payment=paymentMiddleware(routes,resourceServer,undefined,undefined,false);
@@ -74,6 +96,7 @@ function makeDiscovery(){
     title:"Workflow Risk Check — x402 paid YAML preflight",
     version:"0.1.0",
     description:"AI-assisted transparent GitHub Actions static preflight, using original MIT heuristics. Valid YAML requests billed at 0.02 USDC; syntactically invalid requests rejected before payment. Actual paid transaction not yet live-settlement-tested.",
+    "x-guidance":"Read free /v1/docs and /v1/sample first. GET /v1/public-workflow performs a paid static review of one publicly readable GitHub Actions YAML, defaulting to our own exact Git-blob-pinned published workflow (optional owner/repo/ref/file query). POST /v1/check requires a valid JSON workflowYaml and optional filename (up to 48k UTF-8 bytes). These paid endpoints return HTTP 402 until a buyer independently authorizes a 0.02 Base Circle USDC x402 v2 payment. Never send credentials or private YAML. No service or customer should infer that a 402 quote or example response was a completed sale. Static heuristic triage, not a security audit or trading advice.",
     contact:{name:"VM2 Workflow Guard",url:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402"}
    },
    servers:[{url:PUBLIC_ORIGIN}],
@@ -81,13 +104,14 @@ function makeDiscovery(){
     securitySchemes:{x402Payment:{type:"apiKey",in:"header",name:"PAYMENT-SIGNATURE",description:"Buyer-signed x402 v2 EIP-3009 USDC payment; do not send wallet secrets."}},
     schemas:{
      CheckInput:model,
-     CheckResult:{type:"object",properties:{ok:{type:"boolean"},ruleset:{type:"string"},report:{type:"object"},paid_x402:{type:"object"}}}
+     CheckResult:{type:"object",properties:{ok:{type:"boolean"},ruleset:{type:"string"},report:{type:"object"},paid_x402:{type:"object"}}},
+     PublicWorkflowResult:{type:"object",properties:{ok:{type:"boolean"},ruleset:{type:"string"},report:{type:"object"},paid_x402:{type:"object"},input:{type:"object"},source:{type:"object",properties:{provider:{type:"string"},githubBlobSha:{type:"string"},originalUrl:{type:"string"},sourceBytes:{type:"integer"}},required:["provider","githubBlobSha","originalUrl","sourceBytes"]},disclosure:{type:"string"}},required:["ok","ruleset","report","paid_x402","input","source","disclosure"]}
     }
    },
    paths:{
-    "/health":{get:{summary:"Free readiness status",responses:{"200":{description:"Service alive"}}}},
-    "/v1/docs":{get:{summary:"Free payment and privacy terms",responses:{"200":{description:"Documentation"}}}},
-    "/v1/sample":{get:{summary:"Free reproducible synthetic findings",responses:{"200":{description:"Synthetic report"}}}},
+    "/health":{get:{summary:"Free readiness status",security:[],responses:{"200":{description:"Service alive"}}}},
+    "/v1/docs":{get:{summary:"Free payment and privacy terms",security:[],responses:{"200":{description:"Documentation"}}}},
+    "/v1/sample":{get:{summary:"Free reproducible synthetic findings",security:[],responses:{"200":{description:"Synthetic report"}}}},
     "/v1/public-workflow":{get:{
       summary:"Paid 0.02 USDC native Base GitHub Actions public workflow preflight",
       operationId:"preflightPublicGithubWorkflow",
@@ -98,9 +122,9 @@ function makeDiscovery(){
        {in:"query",name:"ref",required:false,schema:{type:"string"}},
        {in:"query",name:"file",required:false,schema:{type:"string"}}
       ],
-      "x-payment-info":{protocols:["x402"],price:{mode:"fixed",currency:"USDC",amount:PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
+      "x-payment-info":{protocols:[{x402:{}}],price:{mode:"fixed",currency:"USD",amount:PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
       security:[{x402Payment:[]}],
-      responses:{"200":{description:"Payment-verified static public GitHub workflow findings with original source SHA"},
+      responses:{"200":{description:"Payment-verified static public GitHub workflow findings with original source SHA",content:{"application/json":{schema:{$ref:"#/components/schemas/PublicWorkflowResult"},example:PUBLIC_OUTPUT_EXAMPLE}}},
        "400":{description:"Invalid source, not charged"},"402":{description:"x402 Base USDC payment quote"},
        "404":{description:"Public workflow unavailable, not charged"},"413":{description:"Source too large, not charged"},
        "503":{description:"GitHub unavailable, not charged"}}
@@ -109,7 +133,7 @@ function makeDiscovery(){
       summary:"GitHub Actions YAML static scan — x402 $0.02 USDC",
       operationId:"checkGithubActionsWorkflow",
       description:"One validated GitHub Actions workflow (up to 48k UTF-8 bytes). Fixed-price paid finding report, NOT a security audit. Buyer sends a signed x402 v2 Base USDC authorization.",
-      "x-payment-info":{protocols:["x402"],price:{mode:"fixed",currency:"USDC",amount:PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
+      "x-payment-info":{protocols:[{x402:{}}],price:{mode:"fixed",currency:"USD",amount:PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
       security:[{x402Payment:[]}],
       requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/CheckInput"},example}}},
       responses:{

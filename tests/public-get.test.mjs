@@ -48,6 +48,14 @@ test("Owned public repo GitHub fixture pays only after public source is download
  assert.equal(data.accepts[0].amount,"20000");
  assert.equal(data.accepts[0].payTo.toLowerCase(),payto.toLowerCase());
  assert.equal(r.headers.get("payment-response"),null);
+ const bazaar=data.extensions?.bazaar;
+ assert.equal(bazaar?.info?.input?.method,"GET");
+ assert.equal(bazaar?.info?.input?.type,"http");
+ assert.equal(bazaar?.info?.output?.type,"json");
+ assert.equal(bazaar?.info?.output?.example?.source?.githubBlobSha,"8892016df7376c6fd7d97fee13e87ab72cfd53ca");
+ assert.equal(bazaar?.schema?.properties?.input?.type,"object");
+ assert.equal(bazaar?.schema?.properties?.output?.type,"object");
+ assert(bazaar.schema.properties.input.properties.queryParams.properties.owner);
 });
 test("MOCK ONLY: successful outside buyer signature unlocks public source report",async()=>{
  const first=await fetch(url);
@@ -79,7 +87,15 @@ test("Original discovery reveals separate GET and POST paid routes",async()=>{
  const w=await (await fetch(base+"/.well-known/x402")).json();
  assert.deepEqual(w.resources,[base+"/v1/check",base+"/v1/public-workflow"]);
  const openapi=await (await fetch(base+"/openapi.json")).json();
- assert.equal(openapi.paths["/v1/public-workflow"].get["x-payment-info"].price.amount,"0.02");
+ const op=openapi.paths["/v1/public-workflow"].get;
+ assert.equal(op["x-payment-info"].price.amount,"0.02");
+ assert.equal(op["x-payment-info"].price.currency,"USD");
+ assert.deepEqual(op["x-payment-info"].protocols,[{x402:{}}]);
+ assert.equal(openapi.paths["/v1/check"].post["x-payment-info"].price.currency,"USD");
+ assert.deepEqual(openapi.paths["/v1/check"].post["x-payment-info"].protocols,[{x402:{}}]);
+ for(const free of ["/health","/v1/docs","/v1/sample"])assert.deepEqual(openapi.paths[free].get.security,[]);
+ assert(openapi.info["x-guidance"].includes("not a security audit"));
+ assert.equal(op.responses["200"].content["application/json"].schema.$ref,"#/components/schemas/PublicWorkflowResult");
  const docs=await (await fetch(base+"/v1/docs")).json();
  assert.equal(docs.paidPublicGET.path,"/v1/public-workflow");
  assert.equal(docs.payment.recipient.toLowerCase(),payto.toLowerCase());
