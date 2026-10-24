@@ -206,6 +206,41 @@ app.get("/openapi.json",(_req,res)=>res.json(openapi));
 app.get(["/.well-known/x402","/.well-known/x402.json"],(_req,res)=>res.json(wellKnown));
 app.get("/robots.txt",(_req,res)=>res.type("text/plain").send("User-agent: *\nDisallow: /v1/check\nDisallow: /v1/public-workflow\nAllow: /v1/docs\nAllow: /v1/sample\n"));
 app.options("/v1/check",(_req,res)=>res.status(204).end());
+// Compatibility for buyers that parse JSON in 402 instead of only the header.
+// Mirror the canonical original middleware quote exactly; never create a
+// payment requirement or change verification/settlement, wallet or price.
+function mirrorCanonicalPublicGet402(req,res,next){
+ const originalSend=res.send;
+ res.send=function(body){
+  const wire=res.getHeader("PAYMENT-REQUIRED");
+  if(req.method==="GET" && res.statusCode===402 &&
+     typeof wire==="string" && wire.length>0 && wire.length<20000){
+   try{
+    const q=JSON.parse(Buffer.from(wire,"base64").toString("utf8"));
+    const resource=new URL(q?.resource?.url);
+    const expected=new URL(req.originalUrl,PUBLIC_ORIGIN);
+    const a=q?.accepts;
+    if(q?.x402Version===2 && resource.href===expected.href &&
+       resource.origin===PUBLIC_ORIGIN &&
+       resource.pathname==="/v1/public-workflow" &&
+       Array.isArray(a) && a.length===1 &&
+       a[0]?.scheme==="exact" && a[0]?.network===NETWORK &&
+       a[0]?.amount==="20000" &&
+       a[0]?.asset?.toLowerCase()===USDC_BASE.toLowerCase() &&
+       a[0]?.payTo?.toLowerCase()===PAY_TO.toLowerCase() &&
+       a[0]?.extra?.name==="USD Coin"){
+      res.setHeader("X-Payment-Required",wire);
+      res.setHeader("Access-Control-Expose-Headers",
+        "PAYMENT-REQUIRED,X-Payment-Required,PAYMENT-RESPONSE");
+      res.type("json");
+      return originalSend.call(res,JSON.stringify(q));
+    }
+   }catch{ /* Any mismatch leaves the original middleware response unchanged. */ }
+  }
+  return originalSend.call(res,body);
+ };
+ next();
+}
 app.get("/v1/public-workflow",async(req,res,next)=>{
  const source=await readPublicWorkflow(req.query);
  if(!source.ok)return res.status(source.status).json({ok:false,charged:false,error:source.error});
@@ -215,7 +250,7 @@ app.get("/v1/public-workflow",async(req,res,next)=>{
  res.on("close",()=>{if(!res.writableEnded)inFlight=Math.max(0,inFlight-1);});
  res.locals.publicWorkflow=source;
  next();
-},payment,(req,res)=>{
+},mirrorCanonicalPublicGet402,payment,(req,res)=>{
  const {preflight,source}=res.locals.publicWorkflow;
  res.status(200).json({...paidResponse(preflight.report,preflight.bytes,preflight.filename),
   source,disclosure:"Anonymous public GitHub YAML static preflight. Not a security audit, certification or exploit evidence."});

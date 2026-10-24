@@ -48,6 +48,13 @@ test("Owned public repo GitHub fixture pays only after public source is download
  assert.equal(data.accepts[0].amount,"20000");
  assert.equal(data.accepts[0].payTo.toLowerCase(),payto.toLowerCase());
  assert.equal(r.headers.get("payment-response"),null);
+ assert.equal(r.headers.get("X-Payment-Required"),r.headers.get("PAYMENT-REQUIRED"),
+   "Legacy JSON-body agents and canonical HTTP header must see identical v2 terms.");
+ assert.match(r.headers.get("content-type")||"",/application\/json/);
+ const publicBody=await r.json();
+ assert.deepEqual(publicBody,data);
+ assert.deepEqual(publicBody.accepts[0],data.accepts[0]);
+ assert.equal(publicBody.accepts[0].amount,"20000");
  const bazaar=data.extensions?.bazaar;
  assert.equal(bazaar?.info?.input?.method,"GET");
  assert.equal(bazaar?.info?.input?.type,"http");
@@ -99,4 +106,25 @@ test("Original discovery reveals separate GET and POST paid routes",async()=>{
  const docs=await (await fetch(base+"/v1/docs")).json();
  assert.equal(docs.paidPublicGET.path,"/v1/public-workflow");
  assert.equal(docs.payment.recipient.toLowerCase(),payto.toLowerCase());
+});
+
+test("An unauthenticated bad public source is still prepayment-rejected without x402 mirroring",async()=>{
+ const bad=await fetch(url+"?owner=evil.com");
+ assert.equal(bad.status,400);
+ assert.equal(bad.headers.get("PAYMENT-REQUIRED"),null);
+ assert.equal(bad.headers.get("X-Payment-Required"),null);
+ assert.equal((await bad.json()).charged,false);
+});
+test("An invalid simulated buyer cannot unlock a report; repeated 402 is only canonical public quote",async()=>{
+ const quoteResponse=await fetch(url);
+ const quote=decodeHeader(quoteResponse,"PAYMENT-REQUIRED");
+ const rejected=await fetch(url,{headers:{"PAYMENT-SIGNATURE":fakePayment(quote,"0x"+"99".repeat(65))}});
+ assert.equal(rejected.status,402);
+ assert.equal(rejected.headers.get("PAYMENT-RESPONSE"),null);
+ const body=await rejected.json();
+ assert.equal(body.x402Version,2);
+ assert.equal(body.accepts[0].amount,"20000");
+ assert.equal(body.accepts[0].payTo.toLowerCase(),payto.toLowerCase());
+ assert(!("paid" in body));
+ assert.equal(rejected.headers.get("PAYMENT-REQUIRED"),rejected.headers.get("X-Payment-Required"));
 });
