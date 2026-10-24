@@ -157,6 +157,8 @@ function makeDiscovery(){
  };
 }
 const {spec:openapi,wellKnown}=makeDiscovery();
+// Public SHA-256 owner proof only. Never embed the private 402 Index domain-management token.
+const DIRECTORY_DOMAIN_PROOF_HASH="60ee3185f8c4f940d09a60d73ebc467b8bd65649d479d6bf556a4fff530207e1";
 const app=express();
 app.disable("x-powered-by");
 app.set("trust proxy",HOST==="0.0.0.0"?1:"loopback");
@@ -199,6 +201,7 @@ app.get("/v1/docs",(_req,res)=>res.json({
  freeLocalTool:"https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/"
 }));
 app.get("/v1/sample",(_req,res)=>res.json(SAMPLE_REPORT));
+app.get("/.well-known/402index-verify.txt",(_req,res)=>res.type("text/plain").send(DIRECTORY_DOMAIN_PROOF_HASH));
 app.get("/openapi.json",(_req,res)=>res.json(openapi));
 app.get(["/.well-known/x402","/.well-known/x402.json"],(_req,res)=>res.json(wellKnown));
 app.get("/robots.txt",(_req,res)=>res.type("text/plain").send("User-agent: *\nDisallow: /v1/check\nDisallow: /v1/public-workflow\nAllow: /v1/docs\nAllow: /v1/sample\n"));

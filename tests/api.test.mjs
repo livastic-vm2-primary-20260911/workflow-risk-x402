@@ -25,6 +25,15 @@ test("Docs are public and warn that real settlement has not been tested",async()
  assert.equal(j.payment.recipient.toLowerCase(),payto.toLowerCase());
  assert.match(j.caution,/NOT formal security advice/);
 });
+test("Directory domain ownership proof exposes only a public 64-hex digest, never the management credential",async()=>{
+ const r=await fetch(base+"/.well-known/402index-verify.txt");
+ assert.equal(r.status,200);
+ assert.match(r.headers.get("content-type")||"",/text\/plain/);
+ assert.equal(r.headers.get("payment-required"),null);
+ const payload=await r.text();
+ assert.match(payload,/^[a-f0-9]{64}$/);
+ assert.equal(payload.length,64);
+});
 test("Synthetic example is free with exact findings",async()=>{
  const r=await fetch(base+"/v1/sample");assert.equal(r.status,200);
  const j=await r.json();assert.equal(j.paid,false);
