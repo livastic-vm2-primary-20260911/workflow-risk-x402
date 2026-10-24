@@ -2,12 +2,46 @@
 // No user-controlled host, redirect, auth header, private repository, or source execution.
 import {normalizeInput,MAX_YAML_BYTES} from "./core.mjs";
 import {TextDecoder} from "node:util";
+import {readFileSync} from "node:fs";
+import {createHash} from "node:crypto";
 
 const SOURCE_ORIGIN="https://api.github.com";
 const DEFAULT={owner:"livastic-vm2-primary-20260911",repo:"workflow-risk-x402",ref:"main",file:"verify.yml"};
 const cache=new Map();
 const CACHE_MS=8*60*1000;
 const MAX_RESPONSE_BYTES=115000;
+const PINNED_BLOB_SHA="8892016df7376c6fd7d97fee13e87ab72cfd53ca";
+const PINNED_SOURCE_COMMIT="ef81c0aa5d6ac2150d757491da2b7576bf121c88";
+
+// First-party, actually versioned public GitHub Actions sample shipped in this
+// same deployed GitHub repository. It is a PINNED SNAPSHOT, not a live remote
+// GitHub HEAD fetch. Exact Git blob SHA makes stale or mutated bundles fail
+// closed before payment. Unrelated public repo queries still use GitHub API.
+export function readBundledPublicWorkflow(){
+ let bytes;
+ try{bytes=readFileSync(new URL("./.github/workflows/verify.yml",import.meta.url));}
+ catch{return {ok:false,status:503,error:"Pinned public sample source unavailable; no payment required."};}
+ if(bytes.length===0 || bytes.length>MAX_YAML_BYTES)
+  return {ok:false,status:413,error:"Pinned sample source exceeds safety bounds; no payment required."};
+ const sha=createHash("sha1").update(Buffer.from("blob "+bytes.length+"\0")).update(bytes).digest("hex");
+ if(sha!==PINNED_BLOB_SHA)
+  return {ok:false,status:503,error:"Bundled public sample does not match verified original GitHub blob; no payment required."};
+ let source;
+ try{source=new TextDecoder("utf-8",{fatal:true}).decode(bytes);}
+ catch{return {ok:false,status:422,error:"Pinned public workflow is not valid UTF-8; no payment required."};}
+ const preflight=normalizeInput({workflowYaml:source,filename:DEFAULT.file});
+ if(!preflight.ok)
+  return {ok:false,status:preflight.status,error:"Pinned public workflow failed prepayment validation; no payment required."};
+ return {ok:true,preflight,source:{
+  provider:"Original public GitHub Actions YAML bundled at deployment (pinned Git blob, not live HEAD)",
+  owner:DEFAULT.owner,repo:DEFAULT.repo,
+  ref:PINNED_SOURCE_COMMIT,requestedRef:"main",path:".github/workflows/"+DEFAULT.file,
+  githubBlobSha:sha,
+  originalUrl:"https://github.com/"+DEFAULT.owner+"/"+DEFAULT.repo+
+   "/blob/"+PINNED_SOURCE_COMMIT+"/.github/workflows/"+DEFAULT.file,
+  sourceBytes:bytes.length,sourceFreshness:"pinned-at-deployment"
+ }};
+}
 
 export function parsePublicSourceQuery(input={}){
  if(!input || typeof input!=="object" || Array.isArray(input))
@@ -50,6 +84,11 @@ export async function readPublicWorkflow(query){
  const cached=cache.get(cacheKey);
  if(cached && Date.now()-cached.at<CACHE_MS)return {ok:true,...cached.result};
  if(cache.size>64)cache.clear();
+ if(process.env.NODE_ENV!=="test" && Object.entries(DEFAULT).every(([k,v])=>parsed.target[k]===v)){
+  const bundled=readBundledPublicWorkflow();
+  if(bundled.ok)cache.set(cacheKey,{at:Date.now(),result:{preflight:bundled.preflight,source:bundled.source}});
+  return bundled;
+ }
  let raw;
  try{
   // All caller input is in validated GitHub API path/query segments only.

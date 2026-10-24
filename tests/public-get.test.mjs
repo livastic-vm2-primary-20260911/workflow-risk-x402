@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parsePublicSourceQuery} from "../public-source.mjs";
+import {parsePublicSourceQuery,readBundledPublicWorkflow} from "../public-source.mjs";
 const base=process.env.TEST_URL;
 const payto=process.env.TEST_PAYTO;
 assert(base && payto,"Local original mock-facilitator and GH fixture required");
@@ -15,6 +15,17 @@ function fakePayment(terms,signature){
    value:terms.accepts[0].amount,validAfter:"0",validBefore:"9999999999",
    nonce:"0x"+"55".repeat(32)}},extensions:terms.extensions||{}})).toString("base64");
 }
+test("Official originally published local source bundle is strictly Git blob pinned and inspectable",()=>{
+ const v=readBundledPublicWorkflow();
+ assert.equal(v.ok,true);
+ assert.equal(v.source.githubBlobSha,"8892016df7376c6fd7d97fee13e87ab72cfd53ca");
+ assert.equal(v.source.sourceFreshness,"pinned-at-deployment");
+ assert.equal(v.source.sourceBytes,560);
+ assert(v.source.originalUrl.includes("/blob/ef81c0aa5d6ac2150d757491da2b7576bf121c88/"));
+ assert.deepEqual(v.preflight.report.counts,{high:0,medium:0,note:0});
+ assert(v.source.provider.includes("not live HEAD"));
+});
+
 test("Only safe public GitHub ownership and workflow filename can create outbound URL",()=>{
  const a=parsePublicSourceQuery({});
  assert.equal(a.ok,true);
