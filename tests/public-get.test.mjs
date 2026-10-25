@@ -92,7 +92,7 @@ test("Bad parameters and unresolvable public Github path are refused BEFORE paym
 });
 test("Original discovery reveals separate GET and POST paid routes",async()=>{
  const w=await (await fetch(base+"/.well-known/x402")).json();
- assert.deepEqual(w.resources,[base+"/v1/check",base+"/v1/public-workflow"]);
+ assert.deepEqual(w.resources,[base+"/v1/check",base+"/v1/public-workflow",base+"/v1/quick-check"]);
  const openapi=await (await fetch(base+"/openapi.json")).json();
  const op=openapi.paths["/v1/public-workflow"].get;
  assert.equal(op["x-payment-info"].price.amount,"0.02");

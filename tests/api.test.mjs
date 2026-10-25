@@ -88,7 +88,7 @@ test("Machine-readable well-known resources refer to real paid path",async()=>{
  for(const endpoint of ["/.well-known/x402","/.well-known/x402.json"]){
   const r=await fetch(base+endpoint);assert.equal(r.status,200);
   const data=await r.json();
-  assert.deepEqual(data.resources,[base+"/v1/check",base+"/v1/public-workflow"]);
+  assert.deepEqual(data.resources,[base+"/v1/check",base+"/v1/public-workflow",base+"/v1/quick-check"]);
  }
 });
 function fakePayment(requirements,signature){
