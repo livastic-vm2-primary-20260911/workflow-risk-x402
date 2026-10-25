@@ -98,6 +98,12 @@ The hosted external facilitator is `https://facilitator.openx402.ai`; its trust,
 
 MIT; original Workflow Risk Check rules and other public sources retain their own licenses.
 
+## Free MCP origin gives only a coarse preview
+
+The publicly reachable stateless Streamable HTTP POST /mcp is FREE and runs the pinned scanner on explicitly supplied public or nonsecret workflow YAML. As of MCP version 0.3.0, the previously detailed free response is deliberately reduced to a coarse riskLevel (HIGH, MEDIUM, NOTE, or NONE_OBSERVED) and flagged status. It never returns severity counts, finding IDs, risk source-line locations, detailed fixes or the supplied YAML itself. This protects the difference between the free preview and independently priced paid x402 REST products.
+
+For actionable source-line signals, an independent buyer may authorize an exact 0.005 native Base Circle USDC HTTP payment for GET /v1/quick-public-workflow or POST /v1/quick-check. For all original findings and fuller explanations, GET /v1/public-workflow and POST /v1/check retain the original 0.02 USDC price. Invalid YAML is rejected before payment. The MCP tool itself never signs or pays, and it never claims payment was settled. The original MCP tool name analyze_github_actions_yaml stays available for existing clients, while its description and returned product disclose the changed FREE scope. Underlying MIT-licensed source remains public; payments are for the hosted convenience response, not exclusive use of the heuristics.
+
 ## New agent-economy micro-SKU and external discovery (25 October 2026)
 
 The two original paid API endpoints, POST /v1/check and GET /v1/public-workflow, retain their original 0.02 native Base Circle USDC pricing and owner payTo. The new independent POST /v1/quick-check costs 0.005 USDC (5,000 atomic micro-USDC) and provides only a short counts-and-top-three-risk-ID summary. It never returns full findings, uploaded workflow source, or private data. The same input validator rejects invalid YAML, traversal and oversized data before any payment.
