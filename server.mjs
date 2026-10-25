@@ -9,11 +9,13 @@ import {declareDiscoveryExtension} from "@x402/extensions/bazaar";
 import {normalizeInput,sampleResponse,paidResponse,MAX_YAML_BYTES,RULESET,PRICE_USDC,USDC_BASE,NETWORK} from "./core.mjs";
 import {readPublicWorkflow,readBundledPublicWorkflow} from "./public-source.mjs";
 import {mcpHandler} from "./mcp-bridge.mjs";
+import {quickResponse,QUICK_PRICE_USDC} from "./quick-check.mjs";
 
 const DIR=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||8737);
 const HOST=process.env.HOST||"127.0.0.1";
 const PRICE="$"+PRICE_USDC;
+const QUICK_PRICE="$"+QUICK_PRICE_USDC;
 const PAY_TO=process.env.PAY_TO||"";
 const FACILITATOR_URL=process.env.FACILITATOR_URL||"https://facilitator.openx402.ai";
 const PUBLIC_ORIGIN=process.env.PUBLIC_ORIGIN||(process.env.NODE_ENV==="test"?"http://127.0.0.1:"+PORT:"");
@@ -65,6 +67,20 @@ const example={
   filename:"pr-check.yml"
 };
 const routes={
+  "POST /v1/quick-check":{
+    accepts:{scheme:"exact",price:QUICK_PRICE,network:NETWORK,payTo:PAY_TO},
+    description:"Pay $0.005 native Circle USDC on Base for a low-cost short GitHub Actions YAML static security-risk summary: source-line risk counts and up to three signal IDs/lines. Not a full review. Input is one public or nonsecret workflowYaml JSON document.",
+    mimeType:"application/json",
+    extensions:declareDiscoveryExtension({
+      method:"POST",bodyType:"json",input:example,
+      inputSchema:model,output:{example:{
+        ok:true,product:"VM2 Quick Workflow Risk",ruleset:RULESET,
+        counts:{high:1,medium:2,note:1},
+        topSignals:[{id:"TARGET_UNTRUSTED_CODE",severity:"high",line:8}],
+        limitations:"Example only; not a real paid customer order."
+      }}
+    })
+  },
   "POST /v1/check":{
     accepts:{scheme:"exact",price:PRICE,network:NETWORK,payTo:PAY_TO},
     description:"Pay $0.02 USDC on Base to receive a source-line GitHub Actions static YAML preflight. Detects risky permission scope, mutable refs, pull_request_target trust boundaries and untrusted expressions. No private repos or execution.",
@@ -95,9 +111,9 @@ function makeDiscovery(){
    openapi:"3.1.0",
    info:{
     title:"Workflow Risk Check — x402 paid YAML preflight",
-    version:"0.1.0",
-    description:"AI-assisted transparent GitHub Actions static preflight, using original MIT heuristics. Valid YAML requests billed at 0.02 USDC; syntactically invalid requests rejected before payment. Actual paid transaction not yet live-settlement-tested.",
-    "x-guidance":"Read free /v1/docs and /v1/sample first. GET /v1/public-workflow performs a paid static review of one publicly readable GitHub Actions YAML, defaulting to our own exact Git-blob-pinned published workflow (optional owner/repo/ref/file query). POST /v1/check requires a valid JSON workflowYaml and optional filename (up to 48k UTF-8 bytes). These paid endpoints return HTTP 402 until a buyer independently authorizes a 0.02 Base Circle USDC x402 v2 payment. Never send credentials or private YAML. No service or customer should infer that a 402 quote or example response was a completed sale. Static heuristic triage, not a security audit or trading advice.",
+    version:"0.2.0",
+    description:"AI-assisted transparent GitHub Actions static preflight, using original MIT heuristics. Valid YAML requests billed at 0.02 USDC; syntactically invalid requests rejected before payment. Actual paid transaction not yet live-settlement-tested. New quick $0.005 summary is separate from the $0.02 full review.",
+    "x-guidance":"Read free /v1/docs and /v1/sample first. POST /v1/quick-check delivers only three top signals at 0.005 USDC. GET /v1/public-workflow performs a paid static review of one publicly readable GitHub Actions YAML, defaulting to our own exact Git-blob-pinned published workflow (optional owner/repo/ref/file query). POST /v1/check requires a valid JSON workflowYaml and optional filename (up to 48k UTF-8 bytes). Paid endpoints return HTTP 402 until an external buyer independently authorizes exact 0.005 or 0.02 native Base Circle USDC x402 v2 payment. Never send credentials or private YAML. No service or customer should infer that a 402 quote or example response was a completed sale. Static heuristic triage, not a security audit or trading advice.",
     contact:{name:"VM2 Workflow Guard",url:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402"}
    },
    servers:[{url:PUBLIC_ORIGIN}],
@@ -106,6 +122,7 @@ function makeDiscovery(){
     schemas:{
      CheckInput:model,
      CheckResult:{type:"object",properties:{ok:{type:"boolean"},ruleset:{type:"string"},report:{type:"object"},paid_x402:{type:"object"}}},
+     QuickCheckResult:{type:"object",properties:{ok:{type:"boolean"},product:{type:"string"},counts:{type:"object"},topSignals:{type:"array",items:{type:"object"}},paid_x402:{type:"object"}}},
      PublicWorkflowResult:{type:"object",properties:{ok:{type:"boolean"},ruleset:{type:"string"},report:{type:"object"},paid_x402:{type:"object"},input:{type:"object"},source:{type:"object",properties:{provider:{type:"string"},githubBlobSha:{type:"string"},originalUrl:{type:"string"},sourceBytes:{type:"integer"}},required:["provider","githubBlobSha","originalUrl","sourceBytes"]},disclosure:{type:"string"}},required:["ok","ruleset","report","paid_x402","input","source","disclosure"]}
     }
    },
@@ -130,6 +147,16 @@ function makeDiscovery(){
        "404":{description:"Public workflow unavailable, not charged"},"413":{description:"Source too large, not charged"},
        "503":{description:"GitHub unavailable, not charged"}}
     }},
+    "/v1/quick-check":{post:{
+      summary:"Under-1-cent short GitHub Actions risk-signal preflight — x402 0.005 Base native Circle USDC",
+      operationId:"quickCheckGithubActionsWorkflow",
+      description:"One public/synthetic GitHub Actions workflow. Return at most three source-line risk IDs and counts. No execution, no private YAML, no security guarantee. The existing 0.02 complete result remains on /v1/check.",
+      "x-payment-info":{protocols:[{x402:{}}],price:{mode:"fixed",currency:"USD",amount:QUICK_PRICE_USDC},network:NETWORK,asset:USDC_BASE,payTo:PAY_TO},
+      security:[{x402Payment:[]}],
+      requestBody:{required:true,content:{"application/json":{schema:{$ref:"#/components/schemas/CheckInput"},example}}},
+      responses:{"200":{description:"Short heuristic report after separately validated payment",content:{"application/json":{schema:{$ref:"#/components/schemas/QuickCheckResult"}}}},
+        "400":{description:"Invalid non-secret source; not charged"},"402":{description:"5,000 micro-USDC exact x402 v2 quote"},"413":{description:"Oversized source rejected before charging"}}
+    }},
     "/v1/check":{post:{
       summary:"GitHub Actions YAML static scan — x402 $0.02 USDC",
       operationId:"checkGithubActionsWorkflow",
@@ -151,8 +178,8 @@ function makeDiscovery(){
   },
   wellKnown:{
    version:1,
-   resources:[PUBLIC_ORIGIN+"/v1/check",PUBLIC_ORIGIN+"/v1/public-workflow"],
-   description:"Fixed 0.02 USDC native Base x402 API. POST /v1/check analyzes supplied public YAML. GET /v1/public-workflow analyzes one anonymously readable public GitHub Actions workflow with optional safe owner/repo/ref/file query. Both require buyer-signed settlement. Free example /v1/sample. Not a security certification.",
+   resources:[PUBLIC_ORIGIN+"/v1/check",PUBLIC_ORIGIN+"/v1/public-workflow",PUBLIC_ORIGIN+"/v1/quick-check"],
+   description:"Exact 0.005 and 0.02 native Base Circle USDC x402 API. POST /v1/quick-check delivers a short 3-signal risk preview. POST /v1/check analyzes supplied public YAML. GET /v1/public-workflow analyzes one anonymously readable public GitHub Actions workflow with optional safe owner/repo/ref/file query. Both require buyer-signed settlement. Free example /v1/sample. Not a security certification.",
    paymentExperience:"Quote tested, full onchain settlement not yet independently verified."
   }
  };
@@ -188,12 +215,13 @@ app.use((req,res,next)=>{
  next();
 });
 app.get("/",(_req,res)=>res.redirect(302,"/v1/docs"));
-app.get("/health",(_req,res)=>res.json({ok:true,name:"VM2 Workflow Risk Check x402",ruleset:RULESET,paidRoute:"POST /v1/check",mcpRoute:"POST /mcp",network:NETWORK,feeUSDC:PRICE_USDC}));
+app.get("/health",(_req,res)=>res.json({ok:true,name:"VM2 Workflow Risk Check x402",ruleset:RULESET,paidRoute:"POST /v1/check",mcpRoute:"POST /mcp",quickRoute:"POST /v1/quick-check",quickFeeUSDC:QUICK_PRICE_USDC,network:NETWORK,feeUSDC:PRICE_USDC}));
 app.get("/v1/docs",(_req,res)=>res.json({
  name:"VM2 Workflow Risk Check x402",
  status:"Beta — real on-chain payment settlement not yet exercised",
  payment:payFields,
  paid:{method:"POST",path:"/v1/check",contentType:"application/json",body:model},
+ quick:{method:"POST",path:"/v1/quick-check",contentType:"application/json",body:model,feeUSDC:QUICK_PRICE_USDC,output:"Top three risk IDs/lines and counts; not a full report"},
  mcp:{method:"POST",path:"/mcp",protocol:"Streamable HTTP",tool:"analyze_github_actions_yaml",payment:"Free origin endpoint; a separate marketplace may charge its own gateway, do not report origin payment without independent chain proof"},
  paidPublicGET:{method:"GET",path:"/v1/public-workflow",defaultPublicSource:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402/blob/main/.github/workflows/verify.yml",query:["owner","repo","ref","file"],sourceValidatedBeforePayment:true},
  free:{"/health":"Service health","/v1/sample":"Original synthetic reproducible sample","/openapi.json":"OpenAPI 3.1 with payment info"},
@@ -262,6 +290,18 @@ app.get("/v1/public-workflow",async(req,res,next)=>{
  res.status(200).json({...paidResponse(preflight.report,preflight.bytes,preflight.filename),
   source,disclosure:"Anonymous public GitHub YAML static preflight. Not a security audit, certification or exploit evidence."});
 });
+app.options("/v1/quick-check",(_req,res)=>res.status(204).end());
+app.post("/v1/quick-check",express.json({limit:"70kb"}),(req,res,next)=>{
+ if(!req.is("application/json"))return res.status(415).json({charged:false,error:"Use application/json."});
+ const preflight=normalizeInput(req.body);
+ if(!preflight.ok)return res.status(preflight.status).json({charged:false,error:preflight.error});
+ if(inFlight>=2)return res.status(503).json({charged:false,error:"Busy; no payment accepted."});
+ inFlight++;
+ res.on("finish",()=>{inFlight=Math.max(0,inFlight-1);});
+ res.on("close",()=>{if(!res.writableEnded)inFlight=Math.max(0,inFlight-1);});
+ res.locals.preflight=preflight;
+ next();
+},payment,(req,res)=>res.status(200).json(quickResponse(res.locals.preflight)));
 app.post("/v1/check",express.json({limit:"70kb"}),(req,res,next)=>{
  if(!req.is("application/json"))return res.status(415).json({charged:false,error:"Use application/json."});
  const preflight=normalizeInput(req.body);

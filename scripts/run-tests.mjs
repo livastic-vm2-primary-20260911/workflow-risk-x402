@@ -21,15 +21,19 @@ const facilitator=http.createServer((req,res)=>{
   let b="";req.on("data",c=>b+=c);req.on("end",()=>{
    let data={};try{data=JSON.parse(b)}catch{}
    const requirements=data?.paymentRequirements;
+   // A test-only facilitator can accept both documented SKU prices; the
+   // actual REST x402 middleware enforces the route's original exact quote.
+   const expectedAmount=requirements?.amount;
+   const testAllowedPrice=expectedAmount==="5000" || expectedAmount==="20000";
    const valid=data?.x402Version===2 && requirements?.network==="eip155:8453" &&
-    requirements?.amount==="20000" && requirements?.payTo?.toLowerCase()===TEST_PAYTO.toLowerCase() &&
+    testAllowedPrice && requirements?.payTo?.toLowerCase()===TEST_PAYTO.toLowerCase() &&
     data?.paymentPayload?.payload?.signature==="0x"+"11".repeat(65);
    if(req.url==="/verify"){
     res.end(JSON.stringify({isValid:valid,payer:"0x"+"33".repeat(20),
      invalidReason:valid?undefined:"test_fixture_bad_marker"}));
    }else{
     res.end(JSON.stringify({success:valid,transaction:"0x"+"22".repeat(32),network:"eip155:8453",
-     amount:valid?"20000":"0",payer:"0x"+"33".repeat(20),errorReason:valid?undefined:"test_fixture_bad_marker"}));
+     amount:valid?expectedAmount:"0",payer:"0x"+"33".repeat(20),errorReason:valid?undefined:"test_fixture_bad_marker"}));
    }
   });return;
  }
@@ -70,7 +74,7 @@ async function ready(){
 let result=1;
 try{
  await ready();
- const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs","tests/public-get.test.mjs","tests/mcp.test.mjs"],
+ const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs","tests/public-get.test.mjs","tests/mcp.test.mjs","tests/quick.test.mjs"],
   {cwd:new URL("../",import.meta.url),env,stdio:"inherit"});
  const [code]=await once(tests,"close");
  result=code??1;

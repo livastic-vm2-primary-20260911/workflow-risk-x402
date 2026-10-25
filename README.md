@@ -97,3 +97,11 @@ The hosted external facilitator is `https://facilitator.openx402.ai`; its trust,
 ## License
 
 MIT; original Workflow Risk Check rules and other public sources retain their own licenses.
+
+## New agent-economy micro-SKU and external discovery (25 October 2026)
+
+The two original paid API endpoints, POST /v1/check and GET /v1/public-workflow, retain their original 0.02 native Base Circle USDC pricing and owner payTo. The new independent POST /v1/quick-check costs 0.005 USDC (5,000 atomic micro-USDC) and provides only a short counts-and-top-three-risk-ID summary. It never returns full findings, uploaded workflow source, or private data. The same input validator rejects invalid YAML, traversal and oversized data before any payment.
+
+A valid unsigned JSON request to https://vm2-workflow-x402.onrender.com/v1/quick-check must respond with canonical x402 v2 402 challenge quoting exactly 5000 native Circle Base USDC micro-units, original EVM payee and exact scheme. Never self-purchase, sign the operator wallet, or consider a challenge or fake facilitator transaction evidence of cash income.
+
+Why 0.005? The external Agent402 basic route-and-execute tier covers underlying tools priced no more than 0.005 USD. The seller remains unproven until independent unique paid settlements, so even if the free origin indexing succeeds, routing and actual sales are not assured. See https://agent402.tools/guides/smart-order-router . External discovery is optional; no marketplace custody or new client consent is inferred.
