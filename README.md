@@ -6,6 +6,20 @@
 
 > **Important billing/QA disclosure:** We test the HTTP 402 quote, validate input before billing, and exercise a test-only simulated facilitator end to end. **No live signed real-USDC payment or on-chain settlement has yet been performed.** A mock transaction hash is not earnings, and no client/customer/payout is claimed until a real verified receipt exists.
 
+## Native MCP endpoint for agent marketplaces (public, stateless)
+
+The **same published origin** now has `POST /mcp`, a stateless [MCP Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) server. Its only tool, `analyze_github_actions_yaml`, analyzes a public or synthetic GitHub Actions YAML input (up to 48,000 UTF-8 bytes) with the **same** local heuristic engine as the original REST API.
+
+- Public MCP endpoint: `https://vm2-workflow-x402.onrender.com/mcp`.
+- Input: `workflowYaml: string`, optional `filename: "*.yml" | "*.yaml"`.
+- Output: source-line findings and a disclaimer. No credential access, wallet signing, transfer, private repo access, or persistence.
+- `GET /mcp` returns 405 by design; use an MCP Streamable HTTP client to `initialize`, `tools/list` and `tools/call`. Only a bounded POST JSON body is accepted.
+- **Important billing distinction:** This origin MCP route is **free/read-only**. An external listing marketplace may charge a buyer at its own gateway and route calls here, but **the origin has no evidence that marketplace payments settled**, and a raw MCP tool response is never a seller payment receipt. Existing independent x402 paid REST `POST /v1/check` and `GET /v1/public-workflow` still require their original $0.02 Base USDC facilitator settlement; this change does not modify the x402 fee, payee or verification/settlement.
+- Marketplace listing is a commercial possibility, not an order. A seller must comply with the marketplace's actual user-age/identity/jurisdiction and payout requirements, and verify unique real on-chain settlement before reporting revenue.
+- Rate controls include a maximum four concurrent MCP calls and 30 calls per minute per client/IP; no claims of a complete security audit. The test harness uses the official MCP SDK client over a loopback server, verifies a real tool call and validates that invalid YAML never unlocks a report.
+
+The code is in `mcp-bridge.mjs`; the same local `npm test` suite covers the legacy REST/x402 flows and this transport.
+
 ## API contract
 
 - `GET /health` — free JSON readiness (no customer data).

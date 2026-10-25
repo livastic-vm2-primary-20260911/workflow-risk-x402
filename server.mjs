@@ -8,6 +8,7 @@ import {ExactEvmScheme} from "@x402/evm/exact/server";
 import {declareDiscoveryExtension} from "@x402/extensions/bazaar";
 import {normalizeInput,sampleResponse,paidResponse,MAX_YAML_BYTES,RULESET,PRICE_USDC,USDC_BASE,NETWORK} from "./core.mjs";
 import {readPublicWorkflow,readBundledPublicWorkflow} from "./public-source.mjs";
+import {mcpHandler} from "./mcp-bridge.mjs";
 
 const DIR=path.dirname(fileURLToPath(import.meta.url));
 const PORT=Number(process.env.PORT||8737);
@@ -187,12 +188,13 @@ app.use((req,res,next)=>{
  next();
 });
 app.get("/",(_req,res)=>res.redirect(302,"/v1/docs"));
-app.get("/health",(_req,res)=>res.json({ok:true,name:"VM2 Workflow Risk Check x402",ruleset:RULESET,paidRoute:"POST /v1/check",network:NETWORK,feeUSDC:PRICE_USDC}));
+app.get("/health",(_req,res)=>res.json({ok:true,name:"VM2 Workflow Risk Check x402",ruleset:RULESET,paidRoute:"POST /v1/check",mcpRoute:"POST /mcp",network:NETWORK,feeUSDC:PRICE_USDC}));
 app.get("/v1/docs",(_req,res)=>res.json({
  name:"VM2 Workflow Risk Check x402",
  status:"Beta — real on-chain payment settlement not yet exercised",
  payment:payFields,
  paid:{method:"POST",path:"/v1/check",contentType:"application/json",body:model},
+ mcp:{method:"POST",path:"/mcp",protocol:"Streamable HTTP",tool:"analyze_github_actions_yaml",payment:"Free origin endpoint; a separate marketplace may charge its own gateway, do not report origin payment without independent chain proof"},
  paidPublicGET:{method:"GET",path:"/v1/public-workflow",defaultPublicSource:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402/blob/main/.github/workflows/verify.yml",query:["owner","repo","ref","file"],sourceValidatedBeforePayment:true},
  free:{"/health":"Service health","/v1/sample":"Original synthetic reproducible sample","/openapi.json":"OpenAPI 3.1 with payment info"},
  limits:{utf8WorkflowBytes:MAX_YAML_BYTES,requestsPerMinute:70,concurrentChecks:2},
@@ -201,6 +203,11 @@ app.get("/v1/docs",(_req,res)=>res.json({
  freeLocalTool:"https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/"
 }));
 app.get("/v1/sample",(_req,res)=>res.json(SAMPLE_REPORT));
+// Separate read-only Streamable HTTP MCP origin. FiatDock or a client decides
+// whether its gateway charges; this route never uses the user wallet.
+app.options("/mcp",(_req,res)=>res.status(204).end());
+app.post("/mcp",express.json({limit:"70kb"}),mcpHandler());
+app.get("/mcp",(_req,res)=>res.status(405).set("Allow","POST").json({error:"MCP stateless transport uses POST"}));
 app.get("/.well-known/402index-verify.txt",(_req,res)=>res.type("text/plain").send(DIRECTORY_DOMAIN_PROOF_HASH));
 app.get("/openapi.json",(_req,res)=>res.json(openapi));
 app.get(["/.well-known/x402","/.well-known/x402.json"],(_req,res)=>res.json(wellKnown));
