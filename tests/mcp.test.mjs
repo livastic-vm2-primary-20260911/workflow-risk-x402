@@ -26,25 +26,31 @@ test("Official SDK Client can negotiate stateless MCP and list one original anal
   const tools=await client.listTools();
   assert.equal(tools.tools.length,1);
   assert.equal(tools.tools[0].name,"analyze_github_actions_yaml");
-  assert.match(tools.tools[0].description,/never signs|never signs, pays/i);
+  assert.match(tools.tools[0].description,/FREE origin MCP coarse risk-level/);
   assert.ok(tools.tools[0].inputSchema,"Missing tool validation schema");
  }finally{await client.close().catch(()=>{});}
 });
 
-test("Official MCP client gets the real pinned static workflow findings, with no paid receipt claim",async()=>{
+test("Official MCP client gets coarse genuinely FREE preview, not paid report data",async()=>{
  const client=new Client({name:"vm2-synthetic-fixture",version:"0.1.0"});
  const transport=new StreamableHTTPClientTransport(new URL(BASE+"/mcp"));
  try{
   await client.connect(transport);
   const result=await client.callTool({name:"analyze_github_actions_yaml",arguments:{workflowYaml:valid,filename:"pr-check.yml"}});
   assert.notEqual(result.isError,true);
-  assert.ok(result.structuredContent?.report,"missing original static report");
+  assert.equal(result.structuredContent?.product,"Free MCP coarse workflow preflight");
   assert.equal(result.structuredContent.checked.filename,"pr-check.yml");
-  assert.equal(result.structuredContent.report.counts.high,1);
-  assert.equal(result.structuredContent.report.counts.medium,2);
-  assert.equal(result.structuredContent.report.counts.note,1);
-  assert.match(result.structuredContent.payment,/No payment or on-chain settlement is verified/);
-  assert.equal(Object.hasOwn(result.structuredContent,"paid_x402"),false);
+  assert.equal(result.structuredContent.riskLevel,"HIGH");
+  assert.equal(result.structuredContent.flagged,true);
+  for(const field of ["report","counts","topSignals","findings","paid_x402","workflowYaml"]){
+   assert.equal(Object.hasOwn(result.structuredContent,field),false,field+" must never be returned for free");
+  }
+  assert.match(result.structuredContent.availablePaidRoutes.short,/0[.]005 native Base Circle USDC/);
+  assert.match(result.structuredContent.availablePaidRoutes.full,/0[.]02 native Base Circle USDC/);
+  assert.match(result.structuredContent.billing,/This MCP origin preview is free/);
+  assert.match(result.content[0].text,/"riskLevel":"HIGH"/);
+  assert.equal(result.content[0].text.includes(valid),false,"Input YAML must not be echoed");
+  assert.equal(result.content[0].text.includes('"line":'),false,"No line-level detail free");
  }finally{await client.close().catch(()=>{});}
 });
 

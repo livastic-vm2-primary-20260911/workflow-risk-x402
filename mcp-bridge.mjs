@@ -11,7 +11,30 @@ import {StreamableHTTPServerTransport} from "@modelcontextprotocol/sdk/server/st
 import * as z from "zod/v4";
 import {normalizeInput,RULESET,MAX_YAML_BYTES} from "./core.mjs";
 
+// Keep original tool ID for existing clients while making the genuinely FREE
+// origin response a coarse preview only. Detailed reports are paid x402 REST.
 const TOOL="analyze_github_actions_yaml";
+const PAID_ROUTES=Object.freeze({
+ short:"GET https://vm2-workflow-x402.onrender.com/v1/quick-public-workflow — 0.005 native Base Circle USDC (public GitHub source) or POST /v1/quick-check (supplied public YAML)",
+ full:"POST https://vm2-workflow-x402.onrender.com/v1/check or GET /v1/public-workflow — 0.02 native Base Circle USDC"
+});
+function coarseFreePreview(validated){
+ const {report,bytes,filename}=validated;
+ if(!report || !report.counts || !Array.isArray(report.findings))throw Error("Scanner did not produce expected free risk level");
+ const high=report.counts.high||0, medium=report.counts.medium||0, note=report.counts.note||0;
+ const level=high>0?"HIGH":medium>0?"MEDIUM":note>0?"NOTE":"NONE_OBSERVED";
+ return {
+  ok:true,product:"Free MCP coarse workflow preflight",
+  ruleset:RULESET,checked:{filename,utf8Bytes:bytes},
+  riskLevel:level,flagged:(high+medium+note)>0,
+  // Never expose a report, counts, finding IDs, source lines, input source
+  // or detailed fixes through the genuinely no-cost MCP origin.
+  availablePaidRoutes:PAID_ROUTES,
+  billing:"This MCP origin preview is free. Paid REST routes charge only when an independent buyer explicitly authorizes a real x402 v2 transfer; this MCP tool never signs, approves, or pays.",
+  limits:"Coarse heuristics only. NONE_OBSERVED is never a clean-bill-of-health or audit. Never send private YAML, keys, secrets, or private repositories."
+ };
+}
+
 const LIMIT=4;
 let active=0;
 const hits=new Map();
@@ -29,11 +52,11 @@ function rateAllowed(ip){
  return item.count<=30;
 }
 export function createMcpServer(){
- const server=new McpServer({name:"onecursor-workflow-risk",version:"0.2.0"});
+ const server=new McpServer({name:"onecursor-workflow-risk",version:"0.3.0"});
  server.registerTool(
   TOOL,{
    title:"Static GitHub Actions YAML Risk Preflight",
-   description:"Read-only, offline AI-agent-friendly GitHub Actions YAML policy review. Finds broad token permissions, mutable action refs, pull_request_target boundaries and injected untrusted expressions. Input ONLY public/synthetic workflow YAML; maximum 48k UTF-8 bytes. Not a penetration test or security certification. Marketplace payment (if any) is handled by the caller; this tool never signs, pays, or claims a Base USDC transaction happened.",
+   description:"FREE origin MCP coarse risk-level alert only: HIGH/MEDIUM/NOTE/NONE_OBSERVED for nonsecret public GitHub Actions YAML. It does NOT return severity counts, actionable risk IDs/lines or a full report. To get a 3-signal report, an independent buyer may separately authorize 0.005 native Base Circle USDC on /v1/quick-public-workflow or /v1/quick-check; full report on /v1/public-workflow or /v1/check costs 0.02. Do not submit secrets or private workflows; no wallet, signature, or payment by this free tool. No audit guarantee.",
    inputSchema:{
     workflowYaml:z.string().min(1).max(MAX_YAML_BYTES).describe("One non-secret GitHub Actions YAML document; no tokens/credentials"),
     filename:z.string().max(120).optional().describe("One simple filename ending in .yml or .yaml")
@@ -44,12 +67,7 @@ export function createMcpServer(){
    if(!result.ok){
     return {isError:true,content:[{type:"text",text:JSON.stringify({ok:false,chargedByOrigin:false,error:result.error})}]};
    }
-   const value={
-    ok:true,ruleset:RULESET,checked:{filename:result.filename,utf8Bytes:result.bytes},
-    report:result.report,
-    payment:"No payment or on-chain settlement is verified by this origin MCP tool. If a marketplace charges the caller, inspect its receipt independently.",
-    limits:"Offline static heuristics only; not a security audit, proof of compromise, or guaranteed clean workflow."
-   };
+   const value=coarseFreePreview(result);
    return {content:[{type:"text",text:JSON.stringify(value)}],structuredContent:value};
   }
  );

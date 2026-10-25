@@ -264,7 +264,7 @@ app.get("/v1/docs",(_req,res)=>res.json({
    defaultPublicSource:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402/blob/main/.github/workflows/verify.yml",
    query:["owner","repo","ref","file"],sourceValidatedBeforePayment:true,
    output:"Counts + at most three finding IDs/severity/line numbers and original public GitHub source SHA, NOT the full review"},
- mcp:{method:"POST",path:"/mcp",protocol:"Streamable HTTP",tool:"analyze_github_actions_yaml",payment:"Free origin endpoint; a separate marketplace may charge its own gateway, do not report origin payment without independent chain proof"},
+ mcp:{method:"POST",path:"/mcp",protocol:"Streamable HTTP",tool:"analyze_github_actions_yaml",resultScope:"FREE coarse risk level only; no report, severity counts, finding IDs or source lines; detailed results require separately authorized paid x402 REST",payment:"Free origin MCP; independent x402 REST prices 0.005/0.02 native Base Circle USDC. No wallet or payment actions from MCP."},
  paidPublicGET:{method:"GET",path:"/v1/public-workflow",defaultPublicSource:"https://github.com/livastic-vm2-primary-20260911/workflow-risk-x402/blob/main/.github/workflows/verify.yml",query:["owner","repo","ref","file"],sourceValidatedBeforePayment:true},
  free:{"/health":"Service health","/v1/sample":"Original synthetic reproducible sample","/openapi.json":"OpenAPI 3.1 with payment info"},
  limits:{utf8WorkflowBytes:MAX_YAML_BYTES,requestsPerMinute:70,concurrentChecks:2},
