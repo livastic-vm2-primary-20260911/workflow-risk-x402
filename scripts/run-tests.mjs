@@ -70,7 +70,7 @@ async function ready(){
 let result=1;
 try{
  await ready();
- const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs","tests/public-get.test.mjs"],
+ const tests=spawn(process.execPath,["--test","tests/core.test.mjs","tests/api.test.mjs","tests/security-guide.test.mjs","tests/public-get.test.mjs","tests/mcp.test.mjs"],
   {cwd:new URL("../",import.meta.url),env,stdio:"inherit"});
  const [code]=await once(tests,"close");
  result=code??1;
