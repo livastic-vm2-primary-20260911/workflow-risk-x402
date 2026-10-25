@@ -105,3 +105,20 @@ The two original paid API endpoints, POST /v1/check and GET /v1/public-workflow,
 A valid unsigned JSON request to https://vm2-workflow-x402.onrender.com/v1/quick-check must respond with canonical x402 v2 402 challenge quoting exactly 5000 native Circle Base USDC micro-units, original EVM payee and exact scheme. Never self-purchase, sign the operator wallet, or consider a challenge or fake facilitator transaction evidence of cash income.
 
 Why 0.005? The external Agent402 basic route-and-execute tier covers underlying tools priced no more than 0.005 USD. The seller remains unproven until independent unique paid settlements, so even if the free origin indexing succeeds, routing and actual sales are not assured. See https://agent402.tools/guides/smart-order-router . External discovery is optional; no marketplace custody or new client consent is inferred.
+
+## Agent- and PayAPI-compatible public GitHub GET micro-SKU (25 October 2026)
+
+The independently priced **`GET /v1/quick-public-workflow`** needs no JSON request body, account, private token, or wallet ownership from the seller. Before the x402 challenge it fetches one anonymous GitHub Actions YAML through the existing bounded original public-source validator. Without query parameters, the source defaults to our already-pinned original GitHub Actions workflow. Optional `owner`, `repo`, `ref`, and `file` are strictly allowlisted/validated. The external payee is the original one-owner `PAY_TO` address, not a new wallet.
+
+This route deliberately costs **0.005 native Base Circle USDC** (5,000 atomic units). The expected successful *paid* output has high/medium/note risk counts, at most 3 source-line signal IDs and severities, and a public GitHub blob SHA; it does **not** release the original full report or any private workflow. Original separately scoped products remain `POST /v1/quick-check` (0.005 native Base USDC), `POST /v1/check` (0.02 native Base USDC), and `GET /v1/public-workflow` (0.02 native Base USDC).
+
+Inspect a quote **without approving a payment**:
+
+```sh
+curl -i 'https://vm2-workflow-x402.onrender.com/v1/quick-public-workflow'
+# Expect HTTP 402 with canonical PAYMENT-REQUIRED x402 v2: eip155:8453,
+# 5,000 atomic native Circle Base USDC, exact scheme, original owner payTo.
+# DO NOT reuse the mocked test-facilitator receipt as a real payout.
+```
+
+There is a separate, free [web-based quote evaluator](https://livastic-vm2-primary-20260911.github.io/defi-x402-settlement-desk-agent-native/) and [public sample](https://vm2-workflow-x402.onrender.com/v1/sample). Genuine buyers can request their own signed x402 payment through their independent clients; **the owner does not self-buy, sign, or transfer gas to exercise the API**. Creating a PayAPI listing is not the same as getting paid. The original 70 requests/minute per IP protection remains in effect in production; the test-only local fixture has a larger budget solely to exercise all regression cases.
