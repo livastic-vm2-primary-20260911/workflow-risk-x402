@@ -17,7 +17,7 @@ const HOST=process.env.HOST||"127.0.0.1";
 const PRICE="$"+PRICE_USDC;
 const QUICK_PRICE="$"+QUICK_PRICE_USDC;
 const PAY_TO=process.env.PAY_TO||"";
-const FACILITATOR_URL=process.env.FACILITATOR_URL||"https://facilitator.openx402.ai";
+const FACILITATOR_URL=process.env.FACILITATOR_URL||"https://facilitator.payai.network";
 const PUBLIC_ORIGIN=process.env.PUBLIC_ORIGIN||(process.env.NODE_ENV==="test"?"http://127.0.0.1:"+PORT:"");
 if(!Number.isInteger(PORT)||PORT<1024||PORT>65535)throw Error("PORT must be an integer 1024–65535");
 if(!["0.0.0.0","127.0.0.1"].includes(HOST))throw Error("HOST must be explicit loopback or all interfaces");

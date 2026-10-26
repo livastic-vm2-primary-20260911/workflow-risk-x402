@@ -128,3 +128,32 @@ curl -i 'https://vm2-workflow-x402.onrender.com/v1/quick-public-workflow'
 ```
 
 There is a separate, free [web-based quote evaluator](https://livastic-vm2-primary-20260911.github.io/defi-x402-settlement-desk-agent-native/) and [public sample](https://vm2-workflow-x402.onrender.com/v1/sample). Genuine buyers can request their own signed x402 payment through their independent clients; **the owner does not self-buy, sign, or transfer gas to exercise the API**. Creating a PayAPI listing is not the same as getting paid. The original 70 requests/minute per IP protection remains in effect in production; the test-only local fixture has a larger budget solely to exercise all regression cases.
+
+## Payment-provider readiness (2026-10-27)
+
+Production defaults and the Render Blueprint use `https://facilitator.payai.network`.
+The previous provider returned `address_not_registered` during an outside
+operator's signed attempt. Its public receiver check reported the configured
+`payTo` as unregistered. This was a merchant-receiver registration prerequisite,
+not evidence that the buyer needed a special wallet. No payer allowlist has been
+added or removed from this application's payment middleware.
+
+PayAI publishes x402 v2 `exact` support for `eip155:8453` and a credential-free
+credit allowance. Check the live `/supported` and `/free-credits?payTo=...&network=eip155:8453`
+endpoints before use; the allowance belongs to the receiver and may be shared
+with other services. It is not unlimited free settlement. The published network
+rate can change. Exhausted unauthenticated credits are refused: this deployment
+has no billing API key, automatic top-up, or authorization to spend the owner's
+wallet. A future paid plan is a separate operator decision.
+
+Changing `render.yaml` or the code default does not prove the live environment
+changed. In the existing Render service, verify `FACILITATOR_URL` and inspect
+`GET /v1/docs` after deploy. Keep `PAY_TO`, prices, token, network and SDK
+verification/settlement logic unchanged. Never fall back to another facilitator
+after an uncertain settlement. A public capabilities check or simulated test
+does not establish successful real payment; an independent buyer receipt is
+still required.
+
+References: [OpenX402 receiver-check contract](https://docs.openx402.ai/facilitator-api),
+[PayAI developer reference](https://facilitator.payai.network/developers),
+[PayAI current pricing](https://facilitator.payai.network/pricing).

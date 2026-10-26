@@ -16,6 +16,6 @@ services:
       - key: PUBLIC_ORIGIN
         value: https://vm2-workflow-x402.onrender.com
       - key: FACILITATOR_URL
-        value: https://facilitator.openx402.ai
+        value: https://facilitator.payai.network
       - key: PAY_TO
         sync: false
