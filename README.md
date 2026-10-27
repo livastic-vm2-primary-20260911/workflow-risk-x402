@@ -4,7 +4,9 @@
 
 [Original analyzer & full tests](https://github.com/livastic-vm2-primary-20260911/workflow-risk-check) · [Free local-first browser version](https://livastic-vm2-primary-20260911.github.io/workflow-risk-check/) · [AI-disclosed synthetic report](https://github.com/livastic-vm2-primary-20260911/workflow-risk-check/blob/main/examples/synthetic-paid-preflight-sample.md)
 
-> **Important billing/QA disclosure:** We test the HTTP 402 quote, validate input before billing, and exercise a test-only simulated facilitator end to end. **No live signed real-USDC payment or on-chain settlement has yet been performed.** A mock transaction hash is not earnings, and no client/customer/payout is claimed until a real verified receipt exists.
+**Public verified marketplace card:** [PayAPI Market — Workflow Guard / GitHub Actions YAML preflight](https://payapi.market/api/workflow-guard-public-github-actions-yaml-security-preflight). The PayAPI Market operator confirmed a **single paid 0.02 USDC** call to `GET /v1/public-workflow` and published a badge for **that exact route only**; [Base transaction receipt](https://basescan.org/tx/0xcb371546542fa0ec4334f0661eb9dcfb014c7e5942f6606e3fbde407839bd8ea). Free MCP previews and all other SKUs are excluded.
+
+> **Verified paid-call disclosure (27 October 2026):** PayAPI Market independently purchased one live `GET /v1/public-workflow` call for **0.02 native Circle USDC on Base**. Its operator confirmed HTTP 200 and the actual workflow-risk-check-v1.2.0 report. The [successful transfer](https://basescan.org/tx/0xcb371546542fa0ec4334f0661eb9dcfb014c7e5942f6606e3fbde407839bd8ea) sent 20,000 micro-USDC to the original single-owner public receiving wallet (0x4e3106520E40af30870caFE78da1B1e7110eD98E), event logIndex **702** in block **53128445**, finalized on two independent RPCs. This was **one outside marketplace-operator verification purchase**, not evidence of an unrelated organic buyer, recurring revenue, or a complete security audit. Dummy local-test transactions remain mock-only.
 
 ## Native MCP endpoint for agent marketplaces (public, stateless)
 
@@ -14,8 +16,8 @@ The **same published origin** now has `POST /mcp`, a stateless [MCP Streamable H
 - Input: `workflowYaml: string`, optional `filename: "*.yml" | "*.yaml"`.
 - Output: source-line findings and a disclaimer. No credential access, wallet signing, transfer, private repo access, or persistence.
 - `GET /mcp` returns 405 by design; use an MCP Streamable HTTP client to `initialize`, `tools/list` and `tools/call`. Only a bounded POST JSON body is accepted.
-- **Important billing distinction:** This origin MCP route is **free/read-only**. An external listing marketplace may charge a buyer at its own gateway and route calls here, but **the origin has no evidence that marketplace payments settled**, and a raw MCP tool response is never a seller payment receipt. Existing independent x402 paid REST `POST /v1/check` and `GET /v1/public-workflow` still require their original $0.02 Base USDC facilitator settlement; this change does not modify the x402 fee, payee or verification/settlement.
-- Marketplace listing is a commercial possibility, not an order. A seller must comply with the marketplace's actual user-age/identity/jurisdiction and payout requirements, and verify unique real on-chain settlement before reporting revenue.
+- **Important billing distinction:** The original `POST /mcp` route remains **free** and never proves payment. One separately priced `GET /v1/public-workflow` request was verified as an outside operator-funded **0.02 USDC** purchase on 27 October 2026, as evidenced above. This does not prove any independent purchase of the other REST routes. The pre-existing Base network, original payee, fees, payment verification, and settlement logic remain unchanged.
+- Marketplace publication or badge status alone is not proof of ongoing organic orders. The **one independently verified operator-funded test purchase** above is counted once, with the exact transfer event, and must not be booked by another owner VM. Every additional order needs a different unique finalized recipient transfer.
 - Rate controls include a maximum four concurrent MCP calls and 30 calls per minute per client/IP; no claims of a complete security audit. The test harness uses the official MCP SDK client over a loopback server, verifies a real tool call and validates that invalid YAML never unlocks a report.
 
 The code is in `mcp-bridge.mjs`; the same local `npm test` suite covers the legacy REST/x402 flows and this transport.
@@ -110,7 +112,7 @@ The two original paid API endpoints, POST /v1/check and GET /v1/public-workflow,
 
 A valid unsigned JSON request to https://vm2-workflow-x402.onrender.com/v1/quick-check must respond with canonical x402 v2 402 challenge quoting exactly 5000 native Circle Base USDC micro-units, original EVM payee and exact scheme. Never self-purchase, sign the operator wallet, or consider a challenge or fake facilitator transaction evidence of cash income.
 
-Why 0.005? The external Agent402 basic route-and-execute tier covers underlying tools priced no more than 0.005 USD. The seller remains unproven until independent unique paid settlements, so even if the free origin indexing succeeds, routing and actual sales are not assured. See https://agent402.tools/guides/smart-order-router . External discovery is optional; no marketplace custody or new client consent is inferred.
+Why 0.005? The external Agent402 basic route-and-execute tier covers underlying tools priced no more than 0.005 USD. The single external operator-funded test purchase above proves one successful paid call, not recurring unrelated buyer demand; free discovery and indexing do not guarantee another sale. See https://agent402.tools/guides/smart-order-router . External discovery is optional; no marketplace custody or new client consent is inferred.
 
 ## Agent- and PayAPI-compatible public GitHub GET micro-SKU (25 October 2026)
 
